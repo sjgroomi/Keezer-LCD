@@ -23,7 +23,7 @@ float calibrationFactors[] = {-89700, -90000, -21650};
 HX711 single;
 HX711 dual;
 LiquidCrystal lcd = LiquidCrystal(RS, ENABLE, D4, D5, D6, D7);
-ProgressBar progressBar = ProgressBar(&lcd);
+CustomChars customChars = CustomChars(&lcd);
 volatile int notSureWhatToCallThis = 0;
 
 void setup() {
@@ -137,21 +137,46 @@ void updateWeights() {
 
 const float fullUnits = 22.72;
 void displayWeightForKeg(int keg) {
+  int column;
   switch (keg) {
     case 0:
-    lcd.setCursor(0, 0);
+    column = 0;
     break;
     case 1:
-    lcd.setCursor(9,0);
+    column = 5;
     break;
     case 2:
-    lcd.setCursor(4, 1);
+    column = 10;
     break;
   }
   HX711 hx711 = scale(keg);
   float units = max(0, hx711.get_units());
   float percentage = units / fullUnits;
-  progressBar.write(percentage, 7);
+  customChars.progressBar(column, percentage);
+  displaySmiley(column + 3, percentage);
+  displayPints(column + 1, percentage);
+}
+
+void displaySmiley(int column, float percentage) {
+  if (percentage < 0.33) {
+    customChars.frown(column, 0);
+  } else if (percentage < 0.66) {
+    customChars.level(column, 0);
+  } else {
+    customChars.smile(column, 0);
+  }
+}
+
+void displayPints(int column, float percentage) {
+  lcd.setCursor(column, 0);
+  char pints[2];
+  dtostrf(round(percentage * 40), 2, 0, pints);
+  int iPints = atoi(pints);
+  char paddedPints[2];
+  sprintf(paddedPints, "%02d", iPints);
+  lcd.print(paddedPints);
+  lcd.setCursor(column, 1);
+  lcd.print("pts");
 }
 
 void button_pressed() {
