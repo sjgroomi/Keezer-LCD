@@ -1,5 +1,6 @@
 #include <LiquidCrystal.h>
 #include "ProgressBar.h"
+#include "Arduino.h"
 
 ProgressBar::ProgressBar(LiquidCrystal *lcd) {
   this->lcd = lcd;
@@ -7,7 +8,7 @@ ProgressBar::ProgressBar(LiquidCrystal *lcd) {
 }
 
 void ProgressBar::configureChars() {
-  uint8_t one[] = {
+  byte one[] = {
     0b00000,
     0b00000,
     0b00000,
@@ -18,7 +19,7 @@ void ProgressBar::configureChars() {
     0b11111
   };
   lcd->createChar(1, one);
-  uint8_t two[] = {
+  byte two[] = {
     0b10000,
     0b10000,
     0b10000,
@@ -29,7 +30,7 @@ void ProgressBar::configureChars() {
     0b11111
   };
   lcd->createChar(2, two);
-  uint8_t three[] = {
+  byte three[] = {
     0b11000,
     0b11000,
     0b11000,
@@ -40,7 +41,7 @@ void ProgressBar::configureChars() {
     0b11111
   };
   lcd->createChar(3, three);
-  uint8_t four[] = {
+  byte four[] = {
     0b11100,
     0b11100,
     0b11100,
@@ -51,7 +52,7 @@ void ProgressBar::configureChars() {
     0b11111
   };
   lcd->createChar(4, four);
-  uint8_t five[] = {
+  byte five[] = {
     0b11110,
     0b11110,
     0b11110,
@@ -62,7 +63,7 @@ void ProgressBar::configureChars() {
     0b11111
   };
   lcd->createChar(5, five);
-  uint8_t six[] = {
+  byte six[] = {
     0b11111,
     0b11111,
     0b11111,
@@ -78,13 +79,18 @@ void ProgressBar::configureChars() {
 void ProgressBar::write(float percentage, int width) {
   float percentagePerSegment = 1.0 / width;
   for (int i = 0; i < width; i++) {
-    if (percentagePerSegment * width > percentage) {
+    if (percentagePerSegment * (i + 1) < percentage) {
        lcd->write(6);
-       return;
+       continue;
     }
     float percentagePerLine = percentagePerSegment / 5;
     float remainder = percentage - i * percentagePerSegment;
-    int character = remainder / percentagePerLine;
+    if (remainder < 0) {
+      lcd->write(1);
+      continue;
+    }
+    int character = max(1, remainder / percentagePerLine);
+    Serial.println(character);
     lcd->write(character);
   }
 }

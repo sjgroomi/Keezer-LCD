@@ -18,7 +18,7 @@
 
 
 int gains[] = {128, 128, 32};
-long tares[] = {0, 0, 0};//long tares[] = {-391167, -352510, -99842};
+long tares[] = {-391167, -352510, -99842};
 float calibrationFactors[] = {-89700, -90000, -21650};
 HX711 single;
 HX711 dual;
@@ -129,6 +129,7 @@ bool isPowerOn() {
 }
 
 void updateWeights() {
+  Serial.println("Update weights");
   for (int i = 0; i < 3; i++) {
     displayWeightForKeg(i);
   }
