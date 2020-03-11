@@ -7,8 +7,8 @@
 #define DOUT_SINGLE 12
 #define DOUT_DUAL 13
 #define CLK 11
-#define SWITCHED_5V 8
-#define RS 9
+#define SWITCHED_5V 9
+#define RS 8
 #define ENABLE 7
 #define D4 6
 #define D5 5
@@ -32,7 +32,42 @@ void setup() {
   configureScales();
   configurePins();
   printTare();
+  configureWatchdog();
 }
+
+bool buttonWake = false;
+bool watchdogWake = false;
+void loop() {
+  if (watchdogWake) {
+    watchdogWake = false;
+    Serial.println("Watchdog wake");
+  }
+  if (buttonWake) {
+    buttonWake = false;
+    Serial.println("Button wake");
+  }
+  updateWeights();
+  if (isPowerOn()) {
+    for (int i = 0; i < 5; i++) {
+      updateWeights();
+      wdt_reset();
+      delay(1000);
+    }
+  }
+  goToSleep();
+}
+
+void printTare() {
+  Serial.println("Tare recommendation:");
+  for (int i = 0; i < 3; i++) {
+    HX711 s = scale(i);
+    Serial.print(i);
+    Serial.print(": ");
+    Serial.println(s.read_average());
+  }
+}
+
+//WATCHDOG
 
 void configureWatchdog() {
    // disable ADC
@@ -49,8 +84,10 @@ void configureWatchdog() {
 
 ISR (WDT_vect) 
 {
-  wdt_disable();
+  watchdogWake = true;
 }
+
+//CONFIGURATION
 
 void configureScales() {
   single.begin(DOUT_SINGLE, CLK);
@@ -59,74 +96,12 @@ void configureScales() {
   dual.begin(DOUT_DUAL, CLK);
 }
 
-void printTare() {
-  Serial.println("Tare recommendation:");
-  for (int i = 0; i < 3; i++) {
-    HX711 s = scale(i);
-    Serial.print(i);
-    Serial.print(": ");
-    Serial.println(s.read_average());
-  }
-}
-
-HX711 scale(int index) {
-  switch (index) {
-    case 0:
-    single.set_gain(128);
-    return single;
-    case 1:
-    case 2:
-    dual.set_gain(gains[index]);
-    dual.set_scale(calibrationFactors[index]);
-    dual.set_offset(tares[index]);
-    return dual;
-  }
-}
-
 void configurePins() {
   pinMode(SWITCHED_5V, OUTPUT);
   pinMode(INTERRUPT, INPUT_PULLUP);
 }
 
-void turnOnPower() {
-  digitalWrite(SWITCHED_5V, HIGH);
-}
-
-void turnOffPower() {
-  digitalWrite(SWITCHED_5V, LOW);
-}
-
-void goToSleep() {
-  attachInterrupt(digitalPinToInterrupt(INTERRUPT), button_pressed, LOW);
-  sleep_enable();
-  set_sleep_mode(SLEEP_MODE_PWR_DOWN);
-  sleepActions();
-  sleep_cpu();
-  wakeActions();
-}
-
-void sleepActions() {
-  turnOffPower();
-}
-
-void wakeActions() {
-
-}
-
-void loop() {
-  wdt_enable(WDTO_2S);
-  updateWeights();
-  configureWatchdog();
-  wdt_reset();
-  if (isPowerOn()) {
-    delay(5000);
-  }
-  goToSleep();
-}
-
-bool isPowerOn() {
-  return digitalRead(SWITCHED_5V) == HIGH;
-}
+//DISPLAY
 
 void updateWeights() {
   Serial.println("Update weights");
@@ -157,6 +132,20 @@ void displayWeightForKeg(int keg) {
   displayPints(column + 1, percentage);
 }
 
+HX711 scale(int index) {
+  switch (index) {
+    case 0:
+    single.set_gain(128);
+    return single;
+    case 1:
+    case 2:
+    dual.set_gain(gains[index]);
+    dual.set_scale(calibrationFactors[index]);
+    dual.set_offset(tares[index]);
+    return dual;
+  }
+}
+
 void displaySmiley(int column, float percentage) {
   if (percentage < 0.33) {
     customChars.frown(column, 0);
@@ -179,8 +168,40 @@ void displayPints(int column, float percentage) {
   lcd.print("pts");
 }
 
+//SLEEP / WAKE
+
 void button_pressed() {
+  buttonWake = true;
   turnOnPower();
   sleep_disable();
   detachInterrupt(digitalPinToInterrupt(INTERRUPT));
+}
+
+void turnOnPower() {
+  digitalWrite(SWITCHED_5V, HIGH);
+}
+
+void turnOffPower() {
+  digitalWrite(SWITCHED_5V, LOW);
+}
+
+void goToSleep() {
+  attachInterrupt(digitalPinToInterrupt(INTERRUPT), button_pressed, LOW);
+  sleep_enable();
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+  sleepActions();
+  sleep_cpu();
+  wakeActions();
+}
+
+void sleepActions() {
+  turnOffPower();
+}
+
+void wakeActions() {
+  
+}
+
+bool isPowerOn() {
+  return digitalRead(SWITCHED_5V) == HIGH;
 }
