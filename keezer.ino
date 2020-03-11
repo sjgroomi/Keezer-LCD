@@ -1,5 +1,6 @@
 #include <HX711.h>
 #include <avr/sleep.h>
+#include <avr/power.h>
 #include <LiquidCrystal.h>
 #include <avr/wdt.h>
 #include "ProgressBar.h"
@@ -27,8 +28,11 @@ CustomChars customChars = CustomChars(&lcd);
 volatile int notSureWhatToCallThis = 0;
 
 void setup() {
+  configureLowPower();
+  
   Serial.begin(9600);
   lcd.begin(16,2);
+  
   configureScales();
   configurePins();
   printTare();
@@ -67,9 +71,17 @@ void printTare() {
   }
 }
 
+void configureLowPower() {
+  // disable ADC
+  ADCSRA = 0; 
+  power_all_disable();
+  power_timer0_enable();
+}
+
 //WATCHDOG
 
 void configureWatchdog() {
+  noInterrupts();
    // disable ADC
   ADCSRA = 0;  
 
@@ -80,6 +92,7 @@ void configureWatchdog() {
   // set interrupt mode and an interval 
   WDTCSR = bit (WDIE) | bit (WDP2) | bit (WDP1) | bit (WDP0);
   wdt_reset();  // pat the dog
+  interrupts();
 }
 
 ISR (WDT_vect) 
@@ -187,9 +200,14 @@ void turnOffPower() {
 
 void goToSleep() {
   attachInterrupt(digitalPinToInterrupt(INTERRUPT), button_pressed, LOW);
+  noInterrupts();
   sleep_enable();
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
   sleepActions();
+  // turn off brown-out enable in software
+  MCUCR = bit (BODS) | bit (BODSE);  // turn on brown-out enable select
+  MCUCR = bit (BODS);        // this must be done within 4 clock cycles of above
+  interrupts();
   sleep_cpu();
   wakeActions();
 }
@@ -197,6 +215,7 @@ void goToSleep() {
 void sleepActions() {
   turnOffPower();
 }
+
 
 void wakeActions() {
   
