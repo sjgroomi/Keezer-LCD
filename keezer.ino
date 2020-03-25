@@ -20,7 +20,7 @@
 
 int gains[] = {128, 128, 32};
 long tares[] = {-391167, -352510, -99842};
-float calibrationFactors[] = {-89700, -90000, -21650};
+float calibrationFactors[] = {-89700, -90000, -19268};
 HX711 single;
 HX711 dual;
 LiquidCrystal lcd = LiquidCrystal(RS, ENABLE, D4, D5, D6, D7);
@@ -46,7 +46,7 @@ void loop() {
   }
   loops++;
   updateWeights();
-  delay(100);
+  delay(200);
 }
 
 void printTare() {
@@ -63,6 +63,7 @@ void configureLowPower() {
   // disable ADC
   ADCSRA = 0; 
   power_all_disable();
+  power_timer0_enable();
 }
 
 //CONFIGURATION
@@ -103,7 +104,7 @@ void displayWeightForKeg(int keg) {
     break;
   }
   HX711 hx711 = scale(keg);
-  float units = max(0, hx711.get_units());
+  float units = hx711.get_units();// max(0, hx711.get_units());
   float percentage = units / fullUnits;
   customChars.progressBar(column, percentage);
   displaySmiley(column + 3, percentage);
@@ -178,10 +179,8 @@ void goToSleep() {
 
 void sleepActions() {
   turnOffPower();
-  //power_timer0_disable();
 }
 
 
 void wakeActions() {
-  //power_timer0_enable();
 }
