@@ -6,8 +6,8 @@
 #include "ProgressBar.h"
 
 #define DOUT_SINGLE 12
-#define DOUT_DUAL 13
-#define CLK 11
+#define DOUT_DUAL 11
+#define CLK 10
 #define SWITCHED_5V 9
 #define RS 8
 #define ENABLE 7
@@ -25,7 +25,6 @@ HX711 single;
 HX711 dual;
 LiquidCrystal lcd = LiquidCrystal(RS, ENABLE, D4, D5, D6, D7);
 CustomChars customChars = CustomChars(&lcd);
-volatile int notSureWhatToCallThis = 0;
 
 void setup() {
   configureLowPower();
@@ -36,29 +35,18 @@ void setup() {
   configureScales();
   configurePins();
   printTare();
-  configureWatchdog();
+  turnOnPower();
 }
 
-bool buttonWake = false;
-bool watchdogWake = false;
+int loops = 0;
 void loop() {
-  if (watchdogWake) {
-    watchdogWake = false;
-    Serial.println("Watchdog wake");
+  if (loops > 10) {
+    goToSleep();
+    loops = 0;
   }
-  if (buttonWake) {
-    buttonWake = false;
-    Serial.println("Button wake");
-  }
+  loops++;
   updateWeights();
-  if (isPowerOn()) {
-    for (int i = 0; i < 5; i++) {
-      updateWeights();
-      wdt_reset();
-      delay(1000);
-    }
-  }
-  goToSleep();
+  delay(100);
 }
 
 void printTare() {
@@ -75,29 +63,6 @@ void configureLowPower() {
   // disable ADC
   ADCSRA = 0; 
   power_all_disable();
-  power_timer0_enable();
-}
-
-//WATCHDOG
-
-void configureWatchdog() {
-  noInterrupts();
-   // disable ADC
-  ADCSRA = 0;  
-
-  // clear various "reset" flags
-  MCUSR = 0;     
-  // allow changes, disable reset
-  WDTCSR = bit (WDCE) | bit (WDE);
-  // set interrupt mode and an interval 
-  WDTCSR = bit (WDIE) | bit (WDP2) | bit (WDP1) | bit (WDP0);
-  wdt_reset();  // pat the dog
-  interrupts();
-}
-
-ISR (WDT_vect) 
-{
-  watchdogWake = true;
 }
 
 //CONFIGURATION
@@ -184,7 +149,6 @@ void displayPints(int column, float percentage) {
 //SLEEP / WAKE
 
 void button_pressed() {
-  buttonWake = true;
   turnOnPower();
   sleep_disable();
   detachInterrupt(digitalPinToInterrupt(INTERRUPT));
@@ -214,13 +178,10 @@ void goToSleep() {
 
 void sleepActions() {
   turnOffPower();
+  //power_timer0_disable();
 }
 
 
 void wakeActions() {
-  
-}
-
-bool isPowerOn() {
-  return digitalRead(SWITCHED_5V) == HIGH;
+  //power_timer0_enable();
 }
