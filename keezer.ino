@@ -89,7 +89,7 @@ void updateWeights() {
   }
 }
 
-const float fullUnits = 22.72;
+const float fullUnits = 19;
 void displayWeightForKeg(int keg) {
   int column;
   switch (keg) {
@@ -104,7 +104,7 @@ void displayWeightForKeg(int keg) {
     break;
   }
   HX711 hx711 = scale(keg);
-  float units = hx711.get_units();// max(0, hx711.get_units());
+  float units = max(0, hx711.get_units());
   float percentage = units / fullUnits;
   customChars.progressBar(column, percentage);
   displaySmiley(column + 3, percentage);
@@ -135,7 +135,8 @@ void displaySmiley(int column, float percentage) {
   }
 }
 
-void displayPints(int column, float percentage) {
+void displayPints
+(int column, float percentage) {
   lcd.setCursor(column, 0);
   char pints[2];
   dtostrf(round(percentage * 40), 2, 0, pints);
